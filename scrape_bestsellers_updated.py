@@ -29,7 +29,7 @@ def format_duration(seconds):
 def save_as_csv(data, filename_prefix="bestsellers"):
     """Convert the scraped data to CSV format."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = f"{filename_prefix}_{ts}.csv"
+    csv_filename = f"./data/csv/{filename_prefix}_{ts}.csv"
 
     csv_rows = []
     bestsellers_data = data.get("bestsellers", {})
@@ -851,7 +851,7 @@ def main():
 
     # Save JSON with timestamped filename
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"bestsellers_updated_{ts}.json"
+    filename = f"./data/json/bestsellers_updated_{ts}.json"
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
