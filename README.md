@@ -15,6 +15,8 @@ This scraper automatically:
 
 ### **Step 1: Setting Up VS Code with WSL**
 
+1. Open VS Code.
+
 #### **1.1 Connect to WSL**
 1. Press `Ctrl+Shift+P` to open Command Palette
 2. Type "WSL: Connect to WSL" and select it
