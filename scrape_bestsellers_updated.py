@@ -644,19 +644,75 @@ def deduplicate_products(items):
 # -----------------------
 
 
+# def get_categories(page):
+#     """Scrape category names + links from the left nav."""
+#     page.goto(BESTSELLERS_URL, wait_until="domcontentloaded")
+#     # Wait for the left nav UL
+#     ul_selector = (
+#         "ul.a-unordered-list.a-nostyle.a-vertical."
+#         "_p13n-zg-nav-tree-all_style_zg-browse-group__88fbz"
+#     )
+#     page.wait_for_selector(ul_selector, timeout=20000)
+#     anchors = page.locator(f"{ul_selector} li a")
+
+#     categories = []
+#     count = anchors.count()
+#     for i in range(count):
+#         a = anchors.nth(i)
+#         name = clean_text(a.inner_text())
+#         href = a.get_attribute("href")
+#         if not name or not href:
+#             continue
+#         url = urljoin(BASE_URL, href)
+#         categories.append({"name": name, "url": url})
+#     return categories
+
+
 def get_categories(page):
-    """Scrape category names + links from the left nav."""
+    """Scrape category names + links from the left nav (robust selector strategy)."""
     page.goto(BESTSELLERS_URL, wait_until="domcontentloaded")
-    # Wait for the left nav UL
-    ul_selector = (
-        "ul.a-unordered-list.a-nostyle.a-vertical."
-        "_p13n-zg-nav-tree-all_style_zg-browse-group__88fbz"
-    )
-    page.wait_for_selector(ul_selector, timeout=10000)
-    anchors = page.locator(f"{ul_selector} li a")
+
+    # Give the client-side nav a moment to initialize
+    try:
+        page.wait_for_load_state("networkidle", timeout=8000)
+    except:
+        pass
+
+    # Prefer a stable attribute on the container, then fall back to partial class matches
+    container_selectors = [
+        'div[data-card-metrics-id*="p13n-zg-nav-tree-all"] ul[class*="zg-browse-group"]',
+        'ul[class*="zg-browse-root"] li > ul[class*="zg-browse-group"]',
+        'ul[class*="zg-browse-group"]',
+    ]
+
+    container = None
+    chosen = None
+    last_err = None
+    for sel in container_selectors:
+        try:
+            # Wait for this variant to be attached and visible
+            page.wait_for_selector(sel, timeout=8000)
+            loc = page.locator(sel).first
+            if loc.count() > 0 and loc.is_visible():
+                container = loc
+                chosen = sel
+                break
+        except Exception as e:
+            last_err = e
+            continue
+
+    if not container:
+        raise RuntimeError(
+            f"Left nav container not found. Tried: {container_selectors}. Last error: {last_err}"
+        )
+
+    print(f"Using left-nav selector: {chosen}")
+
+    anchors = container.locator("li a")
+    count = anchors.count()
+    print(f"Found {count} category links in left nav")
 
     categories = []
-    count = anchors.count()
     for i in range(count):
         a = anchors.nth(i)
         name = clean_text(a.inner_text())
@@ -665,6 +721,7 @@ def get_categories(page):
             continue
         url = urljoin(BASE_URL, href)
         categories.append({"name": name, "url": url})
+
     return categories
 
 
@@ -782,7 +839,7 @@ def main():
 
     with sync_playwright() as p:
         # Headless Chromium; flip to headless=False if you want to watch it run
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         # Using a real browser context helps reduce friction; locale en-IN
         context = browser.new_context(locale="en-IN")
         page = context.new_page()
